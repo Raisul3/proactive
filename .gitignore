@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+
+# Environment variables — সবচেয়ে গুরুত্বপূর্ণ, এখানে সব API key/secret থাকে
+.env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env
+
+# Build output
+dist/
+build/
+frontend/dist/
+
+# Logs
+*.log
+npm-debug.log*
+logs/
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Testing/temp scripts (তোমার নিজের কমেন্ট অনুযায়ী delete করার কথা, কিন্তু ভুলে গেলে/push হয়ে গেলেও যেন repo তে না যায়)
+test-ai.js
+backend/test-ai.js
+
+# Misc
+.cache/

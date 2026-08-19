@@ -1,0 +1,541 @@
+// Prisma schema for the Proactive Life Management Platform.
+// Run `npm run prisma:migrate` after setting DATABASE_URL in .env.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum AuthProvider {
+  LOCAL
+  GOOGLE
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  DONE
+}
+
+enum GoalStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  REMINDER
+}
+
+model User {
+  id                String        @id @default(uuid())
+  name              String
+  email             String        @unique
+  passwordHash      String?
+  role              Role          @default(USER)
+  provider          AuthProvider  @default(LOCAL)
+  googleId          String?       @unique
+  avatarUrl         String?
+  phone             String?
+  district          String?
+  bloodGroup        String?
+  isEmailVerified   Boolean       @default(false)
+  emailVerifyToken  String?
+  resetToken        String?
+  resetTokenExpiry  DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  goals             Goal[]
+  tasks             Task[]
+  budgets           Budget[]
+  medicalRecords    MedicalRecord[]
+  careerProfiles    CareerProfile[]
+  agricultureRecords AgricultureRecord[]
+  travelPlans       TravelPlan[]
+  chatMessages      ChatMessage[]
+  notifications     Notification[]
+  habits            Habit[]
+  settings          UserSettings?
+  reports           Report[]
+
+  aiMemories        AIMemory[]
+  aiRoadmaps        AIRoadmap[]
+  resumes           Resume[]
+  interviewSessions InterviewSession[]
+  skillGapAnalyses  SkillGapAnalysis[]
+  learningPlans     LearningPlan[]
+  portfolio         Portfolio?
+  medicineReminders MedicineReminder[]
+  bloodRequests     BloodRequest[]
+  healthMetrics     HealthMetric[]
+  emergencyAlerts   EmergencyAlert[]
+  cropDiseaseReports CropDiseaseReport[]
+  bdServiceRequests BDServiceRequest[]
+
+  @@map("users")
+}
+
+model UserSettings {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  theme             String   @default("light")
+  language          String   @default("en")
+  emailNotifications Boolean @default(true)
+  pushNotifications  Boolean @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("user_settings")
+}
+
+model Goal {
+  id          String     @id @default(uuid())
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  category    String?
+  targetDate  DateTime?
+  status      GoalStatus @default(ACTIVE)
+  progress    Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  tasks       Task[]
+
+  @@map("goals")
+}
+
+model Task {
+  id          String     @id @default(uuid())
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goalId      String?
+  goal        Goal?      @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  title       String
+  notes       String?
+  dueDate     DateTime?
+  status      TaskStatus @default(PENDING)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@map("tasks")
+}
+
+model Habit {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  frequency   String   @default("daily") // daily | weekly | custom
+  streak      Int      @default(0)
+  lastCheckIn DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("habits")
+}
+
+model Budget {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  monthlyIncome   Decimal  @db.Decimal(12, 2)
+  monthlyExpenses Decimal  @db.Decimal(12, 2)
+  savingsGoal     Decimal? @db.Decimal(12, 2)
+  breakdown       Json?    // { rent: 0, food: 0, transport: 0, ... }
+  aiSummary       String?
+  createdAt       DateTime @default(now())
+
+  @@map("budgets")
+}
+
+model MedicalRecord {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  symptoms    String
+  district    String?
+  aiAnalysis  Json?    // { possibleConditions, recommendedSpecialists, hospitals }
+  createdAt   DateTime @default(now())
+
+  @@map("medical_records")
+}
+
+model CareerProfile {
+  id                String   @id @default(uuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  education         String?
+  skills            String[]
+  interests         String?
+  aiRecommendations Json? // [{ title, description, matchedSkills, missingSkills }]
+  createdAt         DateTime @default(now())
+
+  @@map("career_profiles")
+}
+
+model AgricultureRecord {
+  id                String   @id @default(uuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  soilType          String
+  landSize          Decimal  @db.Decimal(10, 2)
+  season            String
+  aiRecommendations Json? // [{ crop, estimatedYield, buyers }]
+  createdAt         DateTime @default(now())
+
+  @@map("agriculture_records")
+}
+
+model TravelPlan {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  destination     String
+  budget          Decimal  @db.Decimal(12, 2)
+  travelDates     String?
+  preferences     String?
+  aiItinerary     Json?
+  originLat       Float?
+  originLng       Float?
+  destLat         Float?
+  destLng         Float?
+  routeGeometry   Json?    // GeoJSON LineString from OSRM
+  distanceKm      Decimal? @db.Decimal(10, 2)
+  durationMin     Int?
+  weatherSnapshot Json?
+  createdAt       DateTime @default(now())
+
+  packageId       String?
+  travelPackage   TravelPackage? @relation(fields: [packageId], references: [id], onDelete: SetNull)
+
+  @@map("travel_plans")
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String   // 'user' | 'assistant'
+  content   String
+  provider  String?  // 'openai' | 'claude' | 'gemini'
+  createdAt DateTime @default(now())
+
+  @@map("chat_messages")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType @default(INFO)
+  title     String
+  message   String
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@map("notifications")
+}
+
+model Report {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // 'monthly' | 'goals' | 'budget' | ...
+  data      Json
+  createdAt DateTime @default(now())
+
+  @@map("reports")
+}
+
+// ---------------------------------------------------------------------------
+// AI Agent (AI Assistant module): chat memory, success roadmaps, resume
+// analysis, interview coaching, skill-gap analysis, and learning plans.
+// ---------------------------------------------------------------------------
+
+model AIMemory {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key       String
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, key])
+  @@map("ai_memories")
+}
+
+model AIRoadmap {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal       String
+  milestones Json     // [{ title, description, timeframe, resources: string[] }]
+  createdAt  DateTime @default(now())
+
+  @@map("ai_roadmaps")
+}
+
+model Resume {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  content   String
+  atsScore  Int?
+  analysis  Json?    // { atsScore, strengths, weaknesses, missingKeywords, suggestions }
+  createdAt DateTime @default(now())
+
+  @@map("resumes")
+}
+
+model InterviewSession {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String
+  questions Json     // string[]
+  answers   Json?    // string[]
+  feedback  Json?    // { score, strengths, improvements }
+  createdAt DateTime @default(now())
+
+  @@map("interview_sessions")
+}
+
+model SkillGapAnalysis {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetRole    String
+  currentSkills String[]
+  result        Json     // { matchedSkills, missingSkills, priority, roadmap }
+  createdAt     DateTime @default(now())
+
+  @@map("skill_gap_analyses")
+}
+
+model LearningPlan {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal      String
+  plan      Json     // { weeks: [{ week, focus, resources, tasks }] }
+  createdAt DateTime @default(now())
+
+  @@map("learning_plans")
+}
+
+model Portfolio {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slug        String   @unique
+  data        Json     // { headline, about, projects, skills, links }
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("portfolios")
+}
+
+// ---------------------------------------------------------------------------
+// Healthcare module additions
+// ---------------------------------------------------------------------------
+
+model MedicineReminder {
+  id           String    @id @default(uuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  medicineName String
+  dosage       String?
+  times        String[] // ["08:00", "20:00"]
+  startDate    DateTime  @default(now())
+  endDate      DateTime?
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+
+  @@map("medicine_reminders")
+}
+
+model BloodRequest {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bloodGroup   String
+  district     String
+  hospital     String?
+  unitsNeeded  Int      @default(1)
+  contactPhone String
+  urgency      String   @default("normal") // normal | urgent | critical
+  status       String   @default("open")   // open | fulfilled | expired
+  createdAt    DateTime @default(now())
+
+  @@map("blood_requests")
+}
+
+model Medicine {
+  id             Int      @id @default(autoincrement())
+  name           String
+  strength       String
+  indication     String
+  company        String
+  standardDosage String   @map("standard_dosage")
+  mildDosage     String   @map("mild_dosage")
+  severeDosage   String   @map("severe_dosage")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("medicines")
+}
+
+model HealthMetric {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       String   // weight | blood_pressure | blood_sugar | heart_rate
+  value      String
+  unit       String?
+  recordedAt DateTime @default(now())
+
+  @@map("health_metrics")
+}
+
+model EmergencyAlert {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  latitude  Float?
+  longitude Float?
+  message   String?
+  status    String   @default("active") // active | resolved
+  createdAt DateTime @default(now())
+
+  @@map("emergency_alerts")
+}
+
+// ---------------------------------------------------------------------------
+// Agriculture module additions
+// ---------------------------------------------------------------------------
+
+model CropDiseaseReport {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cropName  String
+  symptoms  String
+  diagnosis Json     // { disease, confidence, treatment, prevention }
+  createdAt DateTime @default(now())
+
+  @@map("crop_disease_reports")
+}
+
+// ---------------------------------------------------------------------------
+// Bangladesh Service Hub
+// ---------------------------------------------------------------------------
+
+model BDServiceRequest {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category  String   // government | utility | document | other
+  query     String
+  guidance  Json     // { steps, requiredDocuments, estimatedFee, estimatedTime, officeToVisit, notes }
+  createdAt DateTime @default(now())
+
+  @@map("bd_service_requests")
+}
+
+// ---------------------------------------------------------------------------
+// Travel Packages (Normalized & Production-Ready)
+// ---------------------------------------------------------------------------
+
+model TravelPackage {
+  id                String   @id @default(uuid())
+  packageId         String   @unique @map("package_id")
+  destination       String
+  traditionalPlaces String[] @map("traditional_places")
+  bestVisitingAreas String[] @map("best_visiting_areas")
+  baseBudget        Json     @map("base_budget")
+  transport         Json     // legacy jsonb, kept for backward compatibility
+  hotel             Json     // legacy jsonb, kept for backward compatibility
+
+  isVerified        Boolean  @default(false) @map("is_verified")
+  source            String?
+  lastVerifiedAt    DateTime? @map("last_verified_at")
+  verifiedBy        String?  @map("verified_by")
+  currency          String   @default("BDT")
+  season            String   @default("all_year")
+  isActive          Boolean  @default(true) @map("is_active")
+
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt
+
+  travelPlans       TravelPlan[]
+  transportOptions  TransportOption[]
+  hotelOptions      HotelOption[]
+  priceHistory      PriceHistory[]
+
+  @@map("travel_packages")
+}
+
+model TransportOption {
+  id             String   @id @default(uuid())
+  packageId      String   @map("package_id")
+  package        TravelPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  mode           String                 // 'bus_non_ac' | 'bus_ac' | 'train' | 'plane'
+  price          Decimal  @db.Decimal(12, 2)
+  operator       String?
+  isVerified     Boolean  @default(false) @map("is_verified")
+  source         String?
+  lastVerifiedAt DateTime? @map("last_verified_at")
+  updatedAt      DateTime @default(now()) @map("updated_at")
+
+  @@unique([packageId, mode, operator])
+  @@map("transport_options")
+}
+
+model HotelOption {
+  id             String   @id @default(uuid())
+  packageId      String   @map("package_id")
+  package        TravelPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  tier           String                 // '3_star' | '4_star' | '5_star'
+  pricePerNight  Decimal  @map("price_per_night") @db.Decimal(12, 2)
+  hotelName      String?  @map("hotel_name")
+  bookingUrl     String?  @map("booking_url")
+  isVerified     Boolean  @default(false) @map("is_verified")
+  source         String?
+  lastVerifiedAt DateTime? @map("last_verified_at")
+  updatedAt      DateTime @default(now()) @map("updated_at")
+
+  @@unique([packageId, tier, hotelName])
+  @@map("hotel_options")
+}
+
+model PriceHistory {
+  id         String   @id @default(uuid())
+  packageId  String   @map("package_id")
+  package    TravelPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  fieldName  String   @map("field_name")   // e.g. 'transport.bus_ac'
+  oldValue   Decimal? @map("old_value") @db.Decimal(12, 2)
+  newValue   Decimal? @map("new_value") @db.Decimal(12, 2)
+  changedBy  String?  @map("changed_by")
+  changedAt  DateTime @default(now()) @map("changed_at")
+
+  @@map("price_history")
+}
