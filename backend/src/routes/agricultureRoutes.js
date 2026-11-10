@@ -6,7 +6,14 @@ import { agricultureRecommendationRules } from '../validators/agricultureValidat
 
 const router = Router()
 router.use(requireAuth)
+
 router.post('/recommendations', agricultureRecommendationRules, validate, agricultureController.getRecommendation)
 router.get('/history', agricultureController.getHistory)
+
+// Knowledge base (district / soil / crop)
+router.get('/districts', agricultureController.listDistricts)
+router.get('/districts/:name/crops', agricultureController.getDistrictCrops)
+router.get('/soils/:name/crops', agricultureController.getSoilCrops)
+router.get('/crops/:name/districts', agricultureController.getCropDistricts)
 
 export default router

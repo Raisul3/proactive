@@ -539,3 +539,144 @@ model PriceHistory {
 
   @@map("price_history")
 }
+// ---------------------------------------------------------------------------
+// Agriculture knowledge base (district / soil / crop / season)
+// ---------------------------------------------------------------------------
+
+model AgriSource {
+  id   String  @id @default(uuid())
+  name String  @unique   // BBS, DAE, BARI, BRRI, SRDI, BARC, BAMIS
+  url  String?
+
+  @@map("agri_sources")
+}
+
+model District {
+  id       String  @id @default(uuid())
+  nameEn   String  @unique @map("name_en")
+  nameBn   String? @map("name_bn")
+  division String
+
+  soils    DistrictSoil[]
+  crops    DistrictCrop[]
+
+  @@map("districts")
+}
+
+model Soil {
+  id        String @id @default(uuid())
+  name      String @unique   // Clay, Loamy, Sandy, Silty
+
+  districts DistrictSoil[]
+  crops     CropSoil[]
+
+  @@map("soils")
+}
+
+model Season {
+  id    String @id @default(uuid())
+  name  String @unique       // Rabi, Kharif-1, Kharif-2
+
+  crops CropSeason[]
+
+  @@map("seasons")
+}
+
+model Crop {
+  id          String  @id @default(uuid())
+  nameEn      String  @unique @map("name_en")
+  nameBn      String? @map("name_bn")
+  category    String  // cereal | vegetable | pulse | oilseed | fruit | tuber
+
+  districts   DistrictCrop[]
+  soils       CropSoil[]
+  seasons     CropSeason[]
+  cultivation CropCultivation?
+  diseases    CropDisease[]
+
+  @@map("crops")
+}
+
+// Kon district e kon soil (ekadhik hote pare)
+model DistrictSoil {
+  id         String   @id @default(uuid())
+  districtId String   @map("district_id")
+  soilId     String   @map("soil_id")
+  sharePct   Float?   @map("share_pct")
+  source     String?
+  district   District @relation(fields: [districtId], references: [id], onDelete: Cascade)
+  soil       Soil     @relation(fields: [soilId], references: [id], onDelete: Cascade)
+
+  @@unique([districtId, soilId])
+  @@map("district_soils")
+}
+
+// Actual production (BBS / DAE)
+model DistrictCrop {
+  id            String   @id @default(uuid())
+  districtId    String   @map("district_id")
+  cropId        String   @map("crop_id")
+  year          Int
+  areaAcre      Float?   @map("area_acre")
+  productionTon Float?   @map("production_ton")
+  source        String?
+  district      District @relation(fields: [districtId], references: [id], onDelete: Cascade)
+  crop          Crop     @relation(fields: [cropId], references: [id], onDelete: Cascade)
+
+  @@unique([districtId, cropId, year])
+  @@map("district_crops")
+}
+
+// Agronomic suitability (BARI / BRRI / SRDI)
+model CropSoil {
+  id     String  @id @default(uuid())
+  cropId String  @map("crop_id")
+  soilId String  @map("soil_id")
+  rating Int     // 1-5
+  source String?
+  crop   Crop    @relation(fields: [cropId], references: [id], onDelete: Cascade)
+  soil   Soil    @relation(fields: [soilId], references: [id], onDelete: Cascade)
+
+  @@unique([cropId, soilId])
+  @@map("crop_soils")
+}
+
+model CropSeason {
+  id       String  @id @default(uuid())
+  cropId   String  @map("crop_id")
+  seasonId String  @map("season_id")
+  source   String?
+  crop     Crop    @relation(fields: [cropId], references: [id], onDelete: Cascade)
+  season   Season  @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+
+  @@unique([cropId, seasonId])
+  @@map("crop_seasons")
+}
+
+model CropCultivation {
+  id                String  @id @default(uuid())
+  cropId            String  @unique @map("crop_id")
+  seedRateKgPerAcre Float?  @map("seed_rate_kg_per_acre")
+  yieldMin          Float?  @map("yield_min")   // t/acre
+  yieldMax          Float?  @map("yield_max")
+  durationDays      Int?    @map("duration_days")
+  waterNeed         String? @map("water_need")  // Low | Medium | High
+  source            String?
+  crop              Crop    @relation(fields: [cropId], references: [id], onDelete: Cascade)
+
+  @@map("crop_cultivation")
+}
+
+model CropDisease {
+  id         String   @id @default(uuid())
+  cropId     String   @map("crop_id")
+  name       String
+  symptom    String
+  cause      String
+  management String
+  imageUrls  String[] @map("image_urls")
+  source     String?
+  crop       Crop     @relation(fields: [cropId], references: [id], onDelete: Cascade)
+
+  @@map("crop_diseases")
+}
